@@ -1,0 +1,28 @@
+name: bazora status monitor
+
+on:
+  schedule:
+    # Каждые 5 минут (минимум GitHub Actions; по факту возможен дрейф до ~10-15 мин).
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+# Не наслаивать прогоны друг на друга.
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run status check
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # При желании можно переопределить через repo variables:
+          TARGET_URL: ${{ vars.TARGET_URL }}
+        run: python3 check.py
