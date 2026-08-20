@@ -19,10 +19,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Восстанавливаем прошлый статус (state.json) из кэша предыдущего прогона:
+      # ключ уникален на run, restore-keys подтягивает самый свежий предыдущий.
+      # Так бот помнит, лежало ли всё в прошлый раз, и шлёт только на переходах.
+      - name: Restore previous state
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: bazora-status-state-${{ github.run_id }}
+          restore-keys: |
+            bazora-status-state-
+
       - name: Run status check
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Ручной запуск: слать статус, даже если ничего не изменилось.
+          FORCE_SEND: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
           # При желании можно переопределить через repo variables:
           TARGET_URL: ${{ vars.TARGET_URL }}
         run: python3 check.py
+
+      # Сохраняем обновлённый статус для следующего прогона (даже если проверка
+      # упала с кодом 1 — иначе перепад «сломалось» потеряется).
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: bazora-status-state-${{ github.run_id }}
